@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ClipForge{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script>
+        (function () {
+            const t = localStorage.getItem('clipforge-theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+</head>
+
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <img src="/static/logo.png" alt="ClipForge" class="logo-img">
+                <h1>Clip<span>Forge</span></h1>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-label">Main</div>
+                <a href="/" class="nav-item {% if page == 'dashboard' %}active{% endif %}">
+                    <svg class="icon-svg" viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                        <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                        <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                        <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                    </svg>
+                    Dashboard
+                </a>
+                <a href="/channels" class="nav-item {% if page == 'channels' %}active{% endif %}">
+                    <svg class="icon-svg" viewBox="0 0 24 24">
+                        <rect x="2" y="7" width="20" height="15" rx="2" />
+                        <polyline points="17 2 12 7 7 2" />
+                    </svg>
+                    Channels
+                    <span class="badge" id="nav-channels-count">0</span>
+                </a>
+                <a href="/videos" class="nav-item {% if page == 'videos' %}active{% endif %}">
+                    <svg class="icon-svg" viewBox="0 0 24 24">
+                        <polygon points="23 7 16 12 23 17 23 7" />
+                        <rect x="1" y="5" width="15" height="14" rx="2" />
+                    </svg>
+                    Videos
+                </a>
+
+                <div class="nav-section-label">Content</div>
+                <a href="/clips" class="nav-item {% if page == 'clips' %}active{% endif %}">
+                    <svg class="icon-svg" viewBox="0 0 24 24">
+                        <circle cx="6" cy="6" r="3" />
+                        <circle cx="6" cy="18" r="3" />
+                        <line x1="20" y1="4" x2="8.12" y2="15.88" />
+                        <line x1="14.47" y1="14.48" x2="20" y2="20" />
+                        <line x1="8.12" y1="8.12" x2="12" y2="12" />
+                    </svg>
+                    Clips
+                    <span class="badge" id="nav-clips-count">0</span>
+                </a>
+                <a href="/posts" class="nav-item {% if page == 'posts' %}active{% endif %}">
+                    <svg class="icon-svg" viewBox="0 0 24 24">
+                        <line x1="22" y1="2" x2="11" y2="13" />
+                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                    </svg>
+                    Posts
+                    <span class="badge" id="nav-queue-count">0</span>
+                </a>
+
+                <div class="nav-section-label">Config</div>
+                <a href="/accounts" class="nav-item {% if page == 'accounts' %}active{% endif %}">
+                    <svg class="icon-svg" viewBox="0 0 24 24">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                    </svg>
+                    Accounts
+                </a>
+                <a href="/settings" class="nav-item {% if page == 'settings' %}active{% endif %}">
+                    <svg class="icon-svg" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="3" />
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                    </svg>
+                    Settings
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="theme-toggle-row">
+                    <span>Dark</span>
+                    <div class="theme-toggle-btn" id="theme-toggle" onclick="toggleTheme()" title="Toggle theme"></div>
+                    <span>Light</span>
+                </div>
+                <div class="scheduler-status" id="scheduler-status">
+                    <div class="dot"></div>
+                    <span>Automation Running</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="/static/js/app.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

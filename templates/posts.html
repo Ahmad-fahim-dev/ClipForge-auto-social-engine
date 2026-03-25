@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}ClipForge — Posts{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div>
+        <div class="page-title">Post Queue</div>
+        <div class="page-subtitle">Manage scheduled and completed posts</div>
+    </div>
+</div>
+
+<div class="page-content">
+    <div class="card">
+        <div class="card-header">
+            <h3>
+                <svg class="icon-svg" viewBox="0 0 24 24">
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+                All Posts
+            </h3>
+        </div>
+        <div class="card-body" style="padding:0;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Clip</th>
+                        <th>Platform</th>
+                        <th>Caption</th>
+                        <th>Status</th>
+                        <th>Scheduled</th>
+                    </tr>
+                </thead>
+                <tbody id="posts-body">
+                    <tr>
+                        <td colspan="5">
+                            <div class="empty-state" style="padding:48px;">
+                                <div class="empty-icon-wrap">
+                                    <svg class="icon-svg xl" viewBox="0 0 24 24">
+                                        <line x1="22" y1="2" x2="11" y2="13" />
+                                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                                    </svg>
+                                </div>
+                                <h3>No posts yet</h3>
+                                <p>Queue clips from the Clips page to see them here</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadPosts() {
+        const data = await api('/api/posts');
+        const tbody = document.getElementById('posts-body');
+        if (!data || data.length === 0) return;
+
+        tbody.innerHTML = data.map(p => `
+        <tr>
+            <td style="font-weight:600;">${esc(p.clip_title || `Clip #${p.clip_id}`)}</td>
+            <td><span class="platform-icon ${p.platform}">${p.platform}</span></td>
+            <td style="color:var(--text-secondary);max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(p.caption || '-')}</td>
+            <td><span class="status-badge ${p.status}">${p.status}</span></td>
+            <td style="color:var(--text-muted);">${timeAgo(p.created_at)}</td>
+        </tr>
+    `).join('');
+    }
+    loadPosts();
+</script>
+{% endblock %}

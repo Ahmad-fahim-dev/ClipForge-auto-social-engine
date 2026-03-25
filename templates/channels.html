@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}ClipForge — Channels{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div>
+        <div class="page-title">Creator Channels</div>
+        <div class="page-subtitle">Monitor YouTube creators for new video uploads</div>
+    </div>
+    <div class="top-bar-actions">
+        <button class="btn btn-secondary btn-sm" onclick="checkChannels()">
+            <svg class="icon-svg sm" viewBox="0 0 24 24">
+                <polyline points="23 4 23 10 17 10" />
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+            Check All
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="openModal('add-channel-modal')">
+            <svg class="icon-svg sm" viewBox="0 0 24 24">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Add Channel
+        </button>
+    </div>
+</div>
+
+<div class="page-content">
+    <div class="channel-grid" id="channel-list">
+        <div class="empty-state">
+            <div class="empty-icon-wrap">
+                <svg class="icon-svg xl" viewBox="0 0 24 24">
+                    <rect x="2" y="7" width="20" height="15" rx="2" />
+                    <polyline points="17 2 12 7 7 2" />
+                </svg>
+            </div>
+            <h3>No channels added</h3>
+            <p>Add a YouTube channel URL to start monitoring for new videos</p>
+            <button class="btn btn-primary mt-4" onclick="openModal('add-channel-modal')">
+                <svg class="icon-svg sm" viewBox="0 0 24 24">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Add First Channel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Channel Modal -->
+<div class="modal-overlay" id="add-channel-modal">
+    <div class="modal">
+        <h2>Add YouTube Channel</h2>
+        <div class="form-group">
+            <label>YouTube Channel URL</label>
+            <input type="text" class="form-input" id="channel-url"
+                placeholder="https://www.youtube.com/channel/UC... or @handle">
+        </div>
+        <p class="text-muted" style="font-size:12px; margin-bottom:16px;">
+            Paste any YouTube channel URL. We will extract the channel ID automatically.
+        </p>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('add-channel-modal')">Cancel</button>
+            <button class="btn btn-primary" onclick="addChannel()">Add Channel</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadChannels() {
+        const data = await api('/api/channels');
+        const container = document.getElementById('channel-list');
+        if (!data || data.length === 0) return;
+
+        container.innerHTML = data.map(ch => `
+        <div class="channel-card" id="ch-${ch.id}">
+            <div class="flex-between">
+                <div class="channel-name">${esc(ch.name)}</div>
+                <div class="toggle ${ch.active ? 'active' : ''}"
+                     onclick="toggleChannel(${ch.id}, this)"></div>
+            </div>
+            <div class="channel-id">${esc(ch.channel_id)}</div>
+            <div class="channel-meta">
+                <span>Added ${timeAgo(ch.created_at)}</span>
+                <span>${ch.last_checked ? timeAgo(ch.last_checked) : 'Never checked'}</span>
+            </div>
+            <div class="channel-actions">
+                <a href="https://youtube.com/channel/${esc(ch.channel_id)}" target="_blank" class="btn btn-secondary btn-sm">
+                    <svg class="icon-svg sm" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    View
+                </a>
+                <button class="btn btn-danger btn-sm" onclick="removeChannel(${ch.id})">
+                    <svg class="icon-svg sm" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    Remove
+                </button>
+            </div>
+        </div>
+    `).join('');
+    }
+
+    async function addChannel() {
+        const url = document.getElementById('channel-url').value.trim();
+        if (!url) return showToast('Please enter a channel URL', 'error');
+        const res = await api('/api/channels', 'POST', { url });
+        if (res && res.id) {
+            showToast(`Channel "${res.name}" added!`, 'success');
+            closeModal('add-channel-modal');
+            document.getElementById('channel-url').value = '';
+            loadChannels();
+            loadStats();
+        } else {
+            showToast(res?.error || 'Failed to add channel', 'error');
+        }
+    }
+
+    async function removeChannel(id) {
+        if (!confirm('Remove this channel?')) return;
+        await api(`/api/channels/${id}`, 'DELETE');
+        showToast('Channel removed', 'info');
+        loadChannels();
+        loadStats();
+    }
+
+    async function toggleChannel(id, el) {
+        el.classList.toggle('active');
+        await api(`/api/channels/${id}/toggle`, 'POST');
+    }
+
+    loadChannels();
+</script>
+{% endblock %}

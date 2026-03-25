@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}ClipForge — Videos{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div>
+        <div class="page-title">Videos</div>
+        <div class="page-subtitle">Detected videos from monitored channels</div>
+    </div>
+    <div class="top-bar-actions">
+        <button class="btn btn-primary btn-sm" onclick="downloadAll()">
+            <svg class="icon-svg sm" viewBox="0 0 24 24">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Download All
+        </button>
+    </div>
+</div>
+
+<div class="page-content">
+    <div class="card">
+        <div class="card-body" style="padding:0;">
+            <table class="data-table" id="videos-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Channel</th>
+                        <th>Status</th>
+                        <th>Detected</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="videos-body">
+                    <tr>
+                        <td colspan="5">
+                            <div class="empty-state" style="padding:48px;">
+                                <div class="empty-icon-wrap">
+                                    <svg class="icon-svg xl" viewBox="0 0 24 24">
+                                        <polygon points="23 7 16 12 23 17 23 7" />
+                                        <rect x="1" y="5" width="15" height="14" rx="2" />
+                                    </svg>
+                                </div>
+                                <h3>No videos detected</h3>
+                                <p>Videos will appear here when channels are checked</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadVideos() {
+        const data = await api('/api/videos');
+        const tbody = document.getElementById('videos-body');
+        if (!data || data.length === 0) return;
+
+        tbody.innerHTML = data.map(v => `
+        <tr>
+            <td>
+                <div style="font-weight:650;max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(v.title)}</div>
+            </td>
+            <td><span style="color:var(--text-secondary);">${esc(v.channel_name || 'Unknown')}</span></td>
+            <td><span class="status-badge ${v.status}">${v.status}</span></td>
+            <td style="color:var(--text-muted);">${timeAgo(v.created_at)}</td>
+            <td>
+                <div class="flex gap-2">
+                    ${v.status === 'new' ? `<button class="btn btn-secondary btn-sm" onclick="downloadVideo(${v.id})">
+                        <svg class="icon-svg sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Download</button>` : ''}
+                    ${v.status === 'downloaded' ? `<button class="btn btn-primary btn-sm" onclick="clipVideo(${v.id})">
+                        <svg class="icon-svg sm" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+                        Clip</button>` : ''}
+                </div>
+            </td>
+        </tr>
+    `).join('');
+    }
+
+    async function downloadVideo(id) {
+        showToast('Starting download...', 'info');
+        await api(`/api/videos/${id}/download`, 'POST');
+        loadVideos();
+    }
+
+    async function clipVideo(id) {
+        showToast('Generating clips...', 'info');
+        await api(`/api/videos/${id}/clip`, 'POST');
+        loadVideos();
+    }
+
+    loadVideos();
+</script>
+{% endblock %}

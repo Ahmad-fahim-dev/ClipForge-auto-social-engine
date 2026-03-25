@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}ClipForge — Clips{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div>
+        <div class="page-title">Generated Clips</div>
+        <div class="page-subtitle">Short-form clips ready for posting</div>
+    </div>
+</div>
+
+<div class="page-content">
+    <div class="clip-grid" id="clip-list">
+        <div class="empty-state">
+            <div class="empty-icon-wrap">
+                <svg class="icon-svg xl" viewBox="0 0 24 24">
+                    <circle cx="6" cy="6" r="3" />
+                    <circle cx="6" cy="18" r="3" />
+                    <line x1="20" y1="4" x2="8.12" y2="15.88" />
+                    <line x1="14.47" y1="14.48" x2="20" y2="20" />
+                    <line x1="8.12" y1="8.12" x2="12" y2="12" />
+                </svg>
+            </div>
+            <h3>No clips yet</h3>
+            <p>Download a video and generate clips to see them here</p>
+        </div>
+    </div>
+</div>
+
+<!-- Post Modal -->
+<div class="modal-overlay" id="post-modal">
+    <div class="modal">
+        <h2>Post Clip</h2>
+        <input type="hidden" id="post-clip-id">
+        <div class="form-group">
+            <label>Select Platforms</label>
+            <div class="flex gap-3 mt-4">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:550;">
+                    <input type="checkbox" name="platform" value="youtube"> YouTube Shorts
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:550;">
+                    <input type="checkbox" name="platform" value="tiktok"> TikTok
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:550;">
+                    <input type="checkbox" name="platform" value="instagram"> Instagram Reels
+                </label>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Caption</label>
+            <input type="text" class="form-input" id="post-caption" placeholder="Enter caption...">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('post-modal')">Cancel</button>
+            <button class="btn btn-primary" onclick="queuePost()">Add to Queue</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadClips() {
+        const data = await api('/api/clips');
+        const container = document.getElementById('clip-list');
+        if (!data || data.length === 0) return;
+
+        container.innerHTML = data.map(c => `
+        <div class="clip-card">
+            <div class="clip-thumb">
+                ${c.thumbnail ? `<img src="/media/thumbnails/${c.thumbnail}" style="width:100%;height:100%;object-fit:cover;">` :
+                `<svg class="icon-svg xl" viewBox="0 0 24 24" style="opacity:0.3;"><polygon points="5 3 19 12 5 21 5 3"/></svg>`}
+            </div>
+            <div class="clip-info">
+                <div class="clip-title">${esc(c.title)}</div>
+                <div class="clip-meta">${c.duration ? c.duration + 's' : 'Unknown'} &middot; ${timeAgo(c.created_at)}</div>
+                <div class="clip-actions">
+                    <button class="btn btn-primary btn-sm" onclick="openPostModal(${c.id})">
+                        <svg class="icon-svg sm" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                        Post
+                    </button>
+                    <a href="/media/clips/${c.filename}" target="_blank" class="btn btn-secondary btn-sm">
+                        <svg class="icon-svg sm" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        Preview
+                    </a>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    }
+
+    function openPostModal(clipId) {
+        document.getElementById('post-clip-id').value = clipId;
+        openModal('post-modal');
+    }
+
+    async function queuePost() {
+        const clipId = document.getElementById('post-clip-id').value;
+        const caption = document.getElementById('post-caption').value;
+        const platforms = [...document.querySelectorAll('input[name="platform"]:checked')].map(c => c.value);
+        if (platforms.length === 0) return showToast('Select at least one platform', 'error');
+
+        for (const platform of platforms) {
+            await api('/api/posts', 'POST', { clip_id: clipId, platform, caption });
+        }
+        showToast('Added to post queue!', 'success');
+        closeModal('post-modal');
+        loadStats();
+    }
+
+    loadClips();
+</script>
+{% endblock %}
