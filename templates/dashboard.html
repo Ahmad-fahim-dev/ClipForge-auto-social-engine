@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+{% block title %}ClipForge — Dashboard{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div>
+        <button class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="Toggle menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
+        <div>
+            <div class="page-title">Dashboard</div>
+            <div class="page-subtitle">Overview of your content automation pipeline</div>
+        </div>
+    </div>
+    <div class="top-bar-actions">
+        <button class="btn btn-secondary btn-sm" onclick="checkChannels()">
+            <svg class="icon-svg sm" viewBox="0 0 24 24">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+            Check Now
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="downloadAll()">
+            <svg class="icon-svg sm" viewBox="0 0 24 24">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Download All
+        </button>
+    </div>
+</div>
+
+<div class="page-content">
+    <div class="stat-grid">
+        <div class="stat-card gradient-orange">
+            <div class="stat-icon-wrap orange">
+                <svg class="icon-svg lg" viewBox="0 0 24 24">
+                    <rect x="2" y="7" width="20" height="15" rx="2"></rect>
+                    <polyline points="17 2 12 7 7 2"></polyline>
+                </svg>
+            </div>
+            <div class="stat-value" id="stat-channels">
+                <div class="skeleton" style="width:60px;height:36px;"></div>
+            </div>
+            <div class="stat-label">Active Channels</div>
+        </div>
+        <div class="stat-card gradient-purple">
+            <div class="stat-icon-wrap purple">
+                <svg class="icon-svg lg" viewBox="0 0 24 24">
+                    <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                    <rect x="1" y="5" width="15" height="14" rx="2"></rect>
+                </svg>
+            </div>
+            <div class="stat-value" id="stat-videos">
+                <div class="skeleton" style="width:60px;height:36px;"></div>
+            </div>
+            <div class="stat-label">Videos Detected</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon-wrap teal">
+                <svg class="icon-svg lg" viewBox="0 0 24 24">
+                    <circle cx="6" cy="6" r="3"></circle>
+                    <circle cx="6" cy="18" r="3"></circle>
+                    <line x1="20" y1="4" x2="8.12" y2="15.88"></line>
+                    <line x1="14.47" y1="14.48" x2="20" y2="20"></line>
+                    <line x1="8.12" y1="8.12" x2="12" y2="12"></line>
+                </svg>
+            </div>
+            <div class="stat-value" id="stat-clips">
+                <div class="skeleton" style="width:60px;height:36px;"></div>
+            </div>
+            <div class="stat-label">Clips Generated</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon-wrap coral">
+                <svg class="icon-svg lg" viewBox="0 0 24 24">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            </div>
+            <div class="stat-value" id="stat-posted">
+                <div class="skeleton" style="width:60px;height:36px;"></div>
+            </div>
+            <div class="stat-label">Posts Today</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon-wrap blue">
+                <svg class="icon-svg lg" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+            </div>
+            <div class="stat-value" id="stat-queue">
+                <div class="skeleton" style="width:60px;height:36px;"></div>
+            </div>
+            <div class="stat-label">In Queue</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon-wrap green">
+                <svg class="icon-svg lg" viewBox="0 0 24 24">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+            </div>
+            <div class="stat-value" id="stat-pending">
+                <div class="skeleton" style="width:60px;height:36px;"></div>
+            </div>
+            <div class="stat-label">Pending Downloads</div>
+        </div>
+    </div>
+
+    <div class="two-col-grid">
+        <div class="card">
+            <div class="card-header">
+                <h3>
+                    <svg class="icon-svg" viewBox="0 0 24 24">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                    Recent Activity
+                </h3>
+                <button class="btn btn-secondary btn-sm" onclick="loadActivity()">Refresh</button>
+            </div>
+            <div class="card-body">
+                <ul class="activity-feed" id="activity-feed">
+                    <li class="empty-state" style="padding:32px;">
+                        <div class="empty-icon-wrap">
+                            <svg class="icon-svg xl" viewBox="0 0 24 24">
+                                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                            </svg>
+                        </div>
+                        <h3>No activity yet</h3>
+                        <p>Add some channels to get started</p>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3>
+                    <svg class="icon-svg" viewBox="0 0 24 24">
+                        <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polyline>
+                    </svg>
+                    Pipeline Status
+                </h3>
+                <span class="status-badge ready" id="pipeline-badge">Loading...</span>
+            </div>
+            <div class="card-body">
+                <ul class="settings-list" id="pipeline-stages">
+                    <li class="settings-item">
+                        <div class="si-info">
+                            <h4>Channel Monitor</h4>
+                            <p>Scanning for new uploads</p>
+                        </div>
+                        <span class="status-badge processing">Active</span>
+                    </li>
+                    <li class="settings-item">
+                        <div class="si-info">
+                            <h4>Video Downloader</h4>
+                            <p>Ready for new videos</p>
+                        </div>
+                        <span class="status-badge ready">Idle</span>
+                    </li>
+                    <li class="settings-item">
+                        <div class="si-info">
+                            <h4>Clip Engine</h4>
+                            <p>Waiting for downloads</p>
+                        </div>
+                        <span class="status-badge ready">Idle</span>
+                    </li>
+                    <li class="settings-item">
+                        <div class="si-info">
+                            <h4>Auto Poster</h4>
+                            <p>Waiting for clips</p>
+                        </div>
+                        <span class="status-badge queued">Standby</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadPipelineStatus() {
+        try {
+            const data = await api('/api/scheduler/status');
+            if (!data) return;
+            const badge = document.getElementById('pipeline-badge');
+            const stages = document.getElementById('pipeline-stages');
+
+            if (data.is_running) {
+                badge.className = 'status-badge processing';
+                badge.textContent = 'Running';
+            } else {
+                badge.className = 'status-badge ready';
+                badge.textContent = 'Stopped';
+            }
+
+            if (data.stages && stages) {
+                stages.innerHTML = data.stages.map(s => `
+                    <li class="settings-item">
+                        <div class="si-info">
+                            <h4>${esc(s.name)}</h4>
+                            <p>${esc(s.description || '')}</p>
+                        </div>
+                        <span class="status-badge ${s.status}">${esc(s.status)}</span>
+                    </li>
+                `).join('');
+            }
+        } catch (e) {
+            console.error('Failed to load pipeline status:', e);
+        }
+    }
+
+    async function loadStats() {
+        try {
+            const data = await api('/api/stats');
+            if (!data) return;
+
+            const animate = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.textContent = val;
+                    el.classList.remove('updated');
+                    void el.offsetWidth;
+                    el.classList.add('updated');
+                }
+            };
+
+            animate('stat-channels', data.channels || 0);
+            animate('stat-videos', data.videos || 0);
+            animate('stat-clips', data.clips || 0);
+            animate('stat-posted', data.posts_today || 0);
+            animate('stat-queue', data.queued || 0);
+            animate('stat-pending', data.pending_downloads || 0);
+
+            document.getElementById('nav-channels-count').textContent = data.channels || 0;
+            document.getElementById('nav-clips-count').textContent = data.clips || 0;
+            document.getElementById('nav-queue-count').textContent = data.queued || 0;
+        } catch (e) {
+            console.error('Failed to load stats:', e);
+        }
+    }
+
+    async function loadActivity() {
+        try {
+            const data = await api('/api/activity');
+            const feed = document.getElementById('activity-feed');
+            if (!feed) return;
+
+            const items = Array.isArray(data) ? data : (data.items || []);
+
+            if (items.length === 0) {
+                feed.innerHTML = `
+                    <li class="empty-state" style="padding:32px;">
+                        <div class="empty-icon-wrap">
+                            <svg class="icon-svg xl" viewBox="0 0 24 24">
+                                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                            </svg>
+                        </div>
+                        <h3>No activity yet</h3>
+                        <p>Add some channels to get started</p>
+                    </li>`;
+                return;
+            }
+
+            feed.innerHTML = items.slice(0, 20).map(a => `
+                <li class="activity-item">
+                    <div class="activity-dot ${a.type || 'info'}"></div>
+                    <div class="activity-text">${esc(a.message || a.text)}</div>
+                    <div class="activity-time">${timeAgo(a.created_at || a.timestamp)}</div>
+                </li>
+            `).join('');
+        } catch (e) {
+            console.error('Failed to load activity:', e);
+        }
+    }
+
+    async function checkChannels() {
+        const btn = event.target.closest('button');
+        btn.setAttribute('data-loading', 'true');
+        btn.disabled = true;
+        try {
+            await api('/api/channels/check-all', 'POST');
+            showToast('Channel check started', 'info');
+        } catch (e) {
+            showToast('Failed to check channels', 'error');
+        } finally {
+            btn.removeAttribute('data-loading');
+            btn.disabled = false;
+        }
+    }
+
+    async function downloadAll() {
+        const btn = event.target.closest('button');
+        btn.setAttribute('data-loading', 'true');
+        btn.disabled = true;
+        try {
+            await api('/api/videos/download-all', 'POST');
+            showToast('Download batch started', 'info');
+        } catch (e) {
+            showToast('Failed to start downloads', 'error');
+        } finally {
+            btn.removeAttribute('data-loading');
+            btn.disabled = false;
+        }
+    }
+
+    loadStats();
+    loadActivity();
+    loadPipelineStatus();
+    setInterval(loadStats, 30000);
+    setInterval(loadActivity, 30000);
+    setInterval(loadPipelineStatus, 15000);
+</script>
+{% endblock %}

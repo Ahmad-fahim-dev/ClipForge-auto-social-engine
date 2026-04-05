@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}ClipForge — Settings{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div>
+        <button class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="Toggle menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
+        <div>
+            <div class="page-title">Settings</div>
+            <div class="page-subtitle">Configure automation behavior and intervals</div>
+        </div>
+    </div>
+    <div class="top-bar-actions">
+        <button class="btn btn-primary btn-sm" id="save-settings-btn" onclick="saveSettings()">
+            <svg class="icon-svg sm" viewBox="0 0 24 24">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+            Save Settings
+        </button>
+    </div>
+</div>
+
+<div class="page-content">
+    <!-- Monitoring -->
+    <div class="card">
+        <div class="card-header">
+            <h3>
+                <svg class="icon-svg" viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                Monitoring
+            </h3>
+        </div>
+        <div class="card-body">
+            <ul class="settings-list">
+                <li class="settings-item">
+                    <div class="si-info">
+                        <h4>Check Interval (minutes)</h4>
+                        <p>How often to check channels for new videos</p>
+                    </div>
+                    <div class="si-control">
+                        <input type="number" class="form-input" id="set-check-interval" value="10" min="1">
+                    </div>
+                </li>
+                <li class="settings-item">
+                    <div class="si-info">
+                        <h4>Auto Download</h4>
+                        <p>Automatically download newly detected videos</p>
+                    </div>
+                    <div class="si-control">
+                        <div class="toggle" id="set-auto-download" onclick="this.classList.toggle('active')"></div>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Clip Generation -->
+    <div class="card">
+        <div class="card-header">
+            <h3>
+                <svg class="icon-svg" viewBox="0 0 24 24">
+                    <circle cx="6" cy="6" r="3"></circle>
+                    <circle cx="6" cy="18" r="3"></circle>
+                    <line x1="20" y1="4" x2="8.12" y2="15.88"></line>
+                    <line x1="14.47" y1="14.48" x2="20" y2="20"></line>
+                    <line x1="8.12" y1="8.12" x2="12" y2="12"></line>
+                </svg>
+                Clip Generation
+            </h3>
+        </div>
+        <div class="card-body">
+            <ul class="settings-list">
+                <li class="settings-item">
+                    <div class="si-info">
+                        <h4>Clips Per Video</h4>
+                        <p>Max number of clips to extract from each video</p>
+                    </div>
+                    <div class="si-control">
+                        <input type="number" class="form-input" id="set-clips-per-video" value="5" min="1" max="20">
+                    </div>
+                </li>
+                <li class="settings-item">
+                    <div class="si-info">
+                        <h4>Min Clip Duration (seconds)</h4>
+                        <p>Minimum length for each generated clip</p>
+                    </div>
+                    <div class="si-control">
+                        <input type="number" class="form-input" id="set-min-duration" value="25" min="10" max="59">
+                    </div>
+                </li>
+                <li class="settings-item">
+                    <div class="si-info">
+                        <h4>Max Clip Duration (seconds)</h4>
+                        <p>Maximum length (keep under 60 for Shorts)</p>
+                    </div>
+                    <div class="si-control">
+                        <input type="number" class="form-input" id="set-max-duration" value="59" min="15" max="120">
+                    </div>
+                </li>
+                <li class="settings-item">
+                    <div class="si-info">
+                        <h4>Auto Generate Clips</h4>
+                        <p>Automatically clip videos after download</p>
+                    </div>
+                    <div class="si-control">
+                        <div class="toggle" id="set-auto-clip" onclick="this.classList.toggle('active')"></div>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Auto Posting -->
+    <div class="card">
+        <div class="card-header">
+            <h3>
+                <svg class="icon-svg" viewBox="0 0 24 24">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+                Auto Posting
+            </h3>
+        </div>
+        <div class="card-body">
+            <ul class="settings-list">
+                <li class="settings-item">
+                    <div class="si-info">
+                        <h4>Post Delay (minutes)</h4>
+                        <p>Delay between auto-posting to each platform</p>
+                    </div>
+                    <div class="si-control">
+                        <input type="number" class="form-input" id="set-post-delay" value="30" min="5">
+                    </div>
+                </li>
+                <li class="settings-item">
+                    <div class="si-info">
+                        <h4>Auto Post</h4>
+                        <p>Automatically post queued clips to connected accounts</p>
+                    </div>
+                    <div class="si-control">
+                        <div class="toggle" id="set-auto-post" onclick="this.classList.toggle('active')"></div>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadSettings() {
+        try {
+            const data = await api('/api/settings');
+            if (!data) return;
+
+            const s = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+            const t = (id, val) => { const el = document.getElementById(id); if (el && val) el.classList.add('active'); };
+
+            s('set-check-interval', data.check_interval || 10);
+            s('set-clips-per-video', data.clips_per_video || 5);
+            s('set-min-duration', data.clip_min_duration || data.min_clip_duration || 25);
+            s('set-max-duration', data.clip_max_duration || data.max_clip_duration || 59);
+            s('set-post-delay', data.post_delay || data.post_interval || 30);
+            t('set-auto-download', data.auto_download);
+            t('set-auto-clip', data.auto_clip);
+            t('set-auto-post', data.auto_post);
+        } catch (e) {
+            console.error('Failed to load settings:', e);
+        }
+    }
+
+    async function saveSettings() {
+        const v = id => parseInt(document.getElementById(id)?.value) || 0;
+        const c = id => document.getElementById(id)?.classList.contains('active') || false;
+
+        const btn = document.getElementById('save-settings-btn');
+        btn.setAttribute('data-loading', 'true');
+        btn.disabled = true;
+        try {
+            const res = await api('/api/settings', 'POST', {
+                check_interval: v('set-check-interval'),
+                clips_per_video: v('set-clips-per-video'),
+                clip_min_duration: v('set-min-duration'),
+                clip_max_duration: v('set-max-duration'),
+                post_delay: v('set-post-delay'),
+                auto_download: c('set-auto-download'),
+                auto_clip: c('set-auto-clip'),
+                auto_post: c('set-auto-post')
+            });
+            if (res) showToast('Settings saved!', 'success');
+        } catch (e) {
+            showToast('Failed to save settings', 'error');
+        } finally {
+            btn.removeAttribute('data-loading');
+            btn.disabled = false;
+        }
+    }
+
+    loadSettings();
+</script>
+{% endblock %}
