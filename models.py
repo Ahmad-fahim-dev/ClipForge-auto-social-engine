@@ -58,6 +58,11 @@ def init_db():
             width INTEGER DEFAULT 1080,
             height INTEGER DEFAULT 1920,
             status TEXT DEFAULT 'ready',
+            hook TEXT DEFAULT '',
+            caption TEXT DEFAULT '',
+            hashtags TEXT DEFAULT '',
+            viral_score REAL DEFAULT 0,
+            selection_method TEXT DEFAULT 'heuristic',
             created_at TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE
         );
@@ -88,6 +93,17 @@ def init_db():
             created_at TEXT DEFAULT (datetime('now'))
         );
 
+        CREATE TABLE IF NOT EXISTS transcripts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            video_id INTEGER NOT NULL UNIQUE,
+            language TEXT DEFAULT '',
+            text TEXT DEFAULT '',
+            segments TEXT DEFAULT '[]',
+            engine TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (video_id) REFERENCES videos(id) ON DELETE CASCADE
+        );
+
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
@@ -102,7 +118,14 @@ def init_db():
         );
     """)
 
-    # Insert default settings if they don't exist
+    # Migrate existing databases: add columns that were introduced after
+    # the first release (CREATE TABLE IF NOT EXISTS does not touch them).
+    _migrate_columns(conn)
+
+    # Insert default settings if they don't exist.
+    # NOTE: ai_provider / ai_base_url / ai_model are intentionally NOT given
+    # defaults here — an empty/missing row lets the CLIPFORGE_AI_* environment
+    # variables apply; the UI only stores a value once the user types one.
     defaults = {
         "check_interval": "10",
         "clips_per_video": "5",
@@ -112,6 +135,12 @@ def init_db():
         "auto_post": "false",
         "auto_download": "true",
         "auto_clip": "true",
+        # AI pipeline
+        "ai_enabled": "true",
+        "ai_api_key": "",
+        "ai_auto_metadata": "true",
+        "whisper_mode": "auto",
+        "whisper_model": "base",
     }
     for key, value in defaults.items():
         cursor.execute(
@@ -128,6 +157,26 @@ def init_db():
 
     conn.commit()
     conn.close()
+
+
+def _migrate_columns(conn):
+    """Add missing columns to existing tables (no-op on fresh databases)."""
+    migrations = {
+        "clips": {
+            "hook": "TEXT DEFAULT ''",
+            "caption": "TEXT DEFAULT ''",
+            "hashtags": "TEXT DEFAULT ''",
+            "viral_score": "REAL DEFAULT 0",
+            "selection_method": "TEXT DEFAULT 'heuristic'",
+        },
+    }
+    for table, columns in migrations.items():
+        existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if not existing:
+            continue
+        for column, ddl in columns.items():
+            if column not in existing:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
 
 
 def log_activity(action, details="", level="info"):

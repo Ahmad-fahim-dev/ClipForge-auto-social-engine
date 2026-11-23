@@ -294,11 +294,21 @@ PLATFORM_HANDLERS = {
 }
 
 
+def _format_hashtags(raw):
+    """Turn a comma-separated hashtag string into a '#tag #tag' line."""
+    tags = [t.strip().lstrip("#") for t in (raw or "").split(",") if t.strip()]
+    if not tags:
+        return "#shorts #viral #clips"
+    return " ".join(f"#{t}" for t in tags)
+
+
 def post_clip(post_id):
     """Post a clip from the queue."""
     conn = get_db()
     post = conn.execute(
-        """SELECT p.*, c.file_path, c.title as clip_title
+        """SELECT p.*, c.file_path, c.title as clip_title,
+                  c.hook as clip_hook, c.caption as clip_caption,
+                  c.hashtags as clip_hashtags
            FROM posts p JOIN clips c ON p.clip_id = c.id
            WHERE p.id = ?""",
         (post_id,)
@@ -315,10 +325,27 @@ def post_clip(post_id):
         return False, f"Unknown platform: {platform}"
 
     clip_path = post["file_path"]
-    caption = post["caption"] or f"{post['clip_title']} #shorts #viral #clips"
+
+    # Caption priority: manual per-post caption → AI-generated clip caption →
+    # AI hook + generic hashtags → classic fallback.
+    caption = (post["caption"] or "").strip()
+    if not caption:
+        ai_caption = (post["clip_caption"] or "").strip()
+        if ai_caption:
+            caption = ai_caption
+        elif (post["clip_hook"] or "").strip():
+            hashtags = _format_hashtags(post["clip_hashtags"])
+            caption = f"{post['clip_hook'].strip()}\n\n{hashtags}".strip()
+        else:
+            caption = f"{post['clip_title']} #shorts #viral #clips"
+
+    # Title priority for YouTube: the clip title (AI-generated when the AI
+    # pipeline produced it).
+    clip_title = (post["clip_title"] or "").strip()
 
     if platform == "youtube":
-        success, result = handler(clip_path, post["clip_title"], caption)
+        yt_tags = [t.strip().lstrip("#") for t in (post["clip_hashtags"] or "").split(",") if t.strip()]
+        success, result = handler(clip_path, clip_title, caption, yt_tags or None)
     else:
         success, result = handler(clip_path, caption)
 
@@ -328,16 +355,23 @@ def post_clip(post_id):
                WHERE id = ?""",
             (datetime.utcnow().isoformat(), result, post_id)
         )
-        log_activity("Post Success", f"{post['clip_title']} → {platform}", "success")
     else:
         conn.execute(
             "UPDATE posts SET status = 'failed', error_message = ? WHERE id = ?",
             (result, post_id)
         )
-        log_activity("Post Failed", f"{post['clip_title']} → {platform}: {result}", "error")
 
+    # Commit + close BEFORE logging: log_activity opens its own connection,
+    # and writing while this transaction is open deadlocks SQLite
+    # ("database is locked").
     conn.commit()
     conn.close()
+
+    if success:
+        log_activity("Post Success", f"{post['clip_title']} → {platform}", "success")
+    else:
+        log_activity("Post Failed", f"{post['clip_title']} → {platform}: {result}", "error")
+
     return success, result
 
 

@@ -1,6 +1,16 @@
 """
 Clip Engine — extracts viral short-form clips from downloaded videos.
-Uses scene detection + FFmpeg for smart cuts and vertical crops.
+
+Pipeline (per video):
+  1. Whisper transcription (when the AI pipeline is enabled)
+  2. Segment selection: LLM viral-moment ranking when a transcript exists,
+     with a scene-detection heuristic as fallback
+  3. FFmpeg extraction with 9:16 vertical crop (1080x1920)
+  4. Metadata generation (title / hook / caption / hashtags) via LLM,
+     with template fallbacks
+
+Every AI step degrades gracefully: without a key the engine behaves exactly
+like the classic heuristic pipeline.
 """
 import os
 import subprocess
@@ -8,6 +18,16 @@ import json
 import random
 from models import get_db, log_activity, get_setting
 from config import CLIPS_DIR, THUMBNAILS_DIR, DOWNLOADS_DIR
+
+from engine.ai_client import ai_enabled
+from engine.transcriber import transcribe_video
+from engine.ai_selector import select_viral_segments
+from engine.ai_content import (
+    auto_metadata_enabled,
+    build_platform_caption,
+    generate_clip_metadata,
+    transcript_slice_for,
+)
 
 
 def detect_scenes(video_path, threshold=27.0):
@@ -65,7 +85,7 @@ def get_video_info(video_path):
 
 
 def generate_clip_segments(duration, scene_timestamps, min_dur=25, max_dur=59, count=5):
-    """Generate clip segments from scene timestamps or evenly spaced."""
+    """Generate clip segments from scene timestamps or evenly spaced (heuristic)."""
     segments = []
 
     if scene_timestamps and len(scene_timestamps) >= 2:
@@ -178,6 +198,44 @@ def generate_thumbnail(clip_path, thumbnail_path):
         pass
 
 
+def _plan_segments(video, file_path, duration, clips_per_video, min_dur, max_dur):
+    """
+    Decide which segments to cut.
+
+    Returns (segments, selection_method, transcript) where segments is a
+    list of dicts: {"start", "end", "hook", "viral_score", "reason"} and
+    transcript is the Whisper result (or None when AI is off/failed).
+    """
+    # 1) Whisper transcription (cached, skipped when AI is off)
+    transcript = None
+    if ai_enabled():
+        transcript = transcribe_video(video["id"])
+        if not transcript:
+            log_activity(
+                "Transcription Unavailable",
+                f"Continuing with scene detection for: {video['title']}",
+                "warning",
+            )
+
+    # 2) LLM viral-moment selection when we have a transcript
+    if transcript:
+        ai_segments = select_viral_segments(
+            transcript, video["title"], duration,
+            clips_per_video, min_dur, max_dur,
+        )
+        if ai_segments:
+            return ai_segments, "ai", transcript
+
+    # 3) Heuristic fallback: scene cuts / even spacing
+    scene_ts = detect_scenes(file_path)
+    pairs = generate_clip_segments(duration, scene_ts, min_dur, max_dur, clips_per_video)
+    segments = [
+        {"start": s, "end": e, "hook": "", "viral_score": 0.0, "reason": ""}
+        for s, e in pairs
+    ]
+    return segments, "heuristic", transcript
+
+
 def process_video(video_id):
     """Process a downloaded video — generate clips from it."""
     conn = get_db()
@@ -216,28 +274,51 @@ def process_video(video_id):
     log_activity("Processing Started", f"Generating clips for: {video['title']}", "info")
 
     video_info = get_video_info(file_path)
-    if video_info["duration"] < min_dur:
+    duration = video_info["duration"] or video["duration"]
+    if duration < min_dur:
         conn.execute("UPDATE videos SET processed = 1 WHERE id = ?", (video_id,))
         conn.commit()
         conn.close()
         return False, "Video too short for clips"
 
-    scene_ts = detect_scenes(file_path)
-    segments = generate_clip_segments(
-        video_info["duration"], scene_ts,
-        min_dur, max_dur, clips_per_video
+    segments, selection_method, transcript = _plan_segments(
+        video, file_path, duration, clips_per_video, min_dur, max_dur
     )
 
+    use_ai_metadata = auto_metadata_enabled()
     created_clips = 0
-    for i, (start, end) in enumerate(segments):
+    for i, seg in enumerate(segments):
+        start, end = seg["start"], seg["end"]
         clip_filename = f"{video['youtube_video_id']}_clip{i+1}.mp4"
         clip_path = os.path.join(CLIPS_DIR, clip_filename)
         thumb_filename = f"{video['youtube_video_id']}_clip{i+1}.jpg"
         thumb_path = os.path.join(THUMBNAILS_DIR, thumb_filename)
 
-        clip_title = f"{video['title']} - Part {i+1}"
-        if len(clip_title) > 100:
-            clip_title = clip_title[:97] + "..."
+        # Metadata: LLM first (hook/reason come from the selection pass),
+        # template fallback keeps the classic "{title} - Part N" behaviour.
+        fallback_title = f"{video['title']} - Part {i+1}"
+        if len(fallback_title) > 100:
+            fallback_title = fallback_title[:97] + "..."
+
+        if use_ai_metadata:
+            slice_text = (
+                transcript_slice_for(transcript, start, end) if transcript else ""
+            )
+            metadata = generate_clip_metadata(
+                video["title"], slice_text, start, end,
+                platform="youtube", clip_title_hint=fallback_title,
+            )
+            hook = seg.get("hook") or metadata.get("hook", "")
+            viral_score = float(seg.get("viral_score") or 0)
+            clip_title = metadata["title"] or fallback_title
+            caption = build_platform_caption(metadata, "youtube")
+            hashtags = ",".join(metadata["hashtags"])
+        else:
+            hook = seg.get("hook", "")
+            viral_score = float(seg.get("viral_score") or 0)
+            clip_title = fallback_title
+            caption = ""
+            hashtags = ""
 
         success = extract_clip(file_path, start, end, clip_path, video_info)
         if success and os.path.exists(clip_path):
@@ -245,11 +326,13 @@ def process_video(video_id):
 
             conn.execute(
                 """INSERT INTO clips (video_id, title, file_path, thumbnail_path,
-                   duration, start_time, end_time, status)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, 'ready')""",
+                   duration, start_time, end_time, status,
+                   hook, caption, hashtags, viral_score, selection_method)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?)""",
                 (video_id, clip_title, clip_path,
                  thumb_path if os.path.exists(thumb_path) else "",
-                 round(end - start, 1), start, end)
+                 round(end - start, 1), start, end,
+                 hook, caption, hashtags, viral_score, selection_method)
             )
             created_clips += 1
 
@@ -259,10 +342,10 @@ def process_video(video_id):
 
     log_activity(
         "Processing Complete",
-        f"{created_clips} clips from: {video['title']}",
+        f"{created_clips} clips from: {video['title']} (selection: {selection_method})",
         "success"
     )
-    return True, f"Created {created_clips} clips"
+    return True, f"Created {created_clips} clips (selection: {selection_method})"
 
 
 def process_pending():

@@ -12,6 +12,9 @@ from engine.downloader import download_video, download_pending
 from engine.clipper import process_video, process_pending
 from engine.poster import post_clip, post_queued, test_account_connection
 from engine.scheduler import get_scheduler_status, update_scheduler
+from engine.ai_client import ai_enabled, get_ai_config, test_ai_connection
+from engine.ai_content import generate_and_save_clip_metadata
+from engine.transcriber import local_whisper_available
 
 api = Blueprint("api", __name__, url_prefix="/api")
 
@@ -255,7 +258,7 @@ def delete_post(post_id):
     return jsonify({"success": True})
 
 
-# ─── Accounts — STRONG CONNECTION LOGIC ──────────────────────────────────
+# ─── Accounts — STRONG CONNECTION LOGIC ──────────────────────────────
 
 @api.route("/accounts")
 def list_accounts():
@@ -427,7 +430,59 @@ def test_account(platform):
     return jsonify({"success": test_ok, "message": test_msg})
 
 
-# ─── Settings ────────────────────────────────────────────────────────────
+# ─── AI Pipeline ─────────────────────────────────────────────────────────
+
+@api.route("/ai/status")
+def ai_status():
+    """Report AI pipeline configuration and capabilities."""
+    cfg = get_ai_config()
+    return jsonify({
+        "configured": cfg is not None,
+        "active": ai_enabled(),
+        "provider": cfg["provider"] if cfg else "",
+        "model": cfg["model"] if cfg else "",
+        "base_url": cfg["base_url"] if cfg else "",
+        "api_key_preview": ("***" + cfg["api_key"][-4:]) if cfg and len(cfg["api_key"]) > 4 else "",
+        "ai_enabled": str(get_setting("ai_enabled", "true")).lower() in ("1", "true", "yes", "on"),
+        "ai_auto_metadata": str(get_setting("ai_auto_metadata", "true")).lower() in ("1", "true", "yes", "on"),
+        "whisper_mode": get_setting("whisper_mode", "auto"),
+        "whisper_model": get_setting("whisper_model", "base"),
+        "local_whisper": local_whisper_available(),
+    })
+
+
+@api.route("/ai/test", methods=["POST"])
+def ai_test():
+    """Verify the AI configuration with a live request."""
+    ok, msg = test_ai_connection()
+    log_activity("AI Connection Test", msg, "success" if ok else "error")
+    return jsonify({"success": ok, "message": msg})
+
+
+@api.route("/ai/generate/<int:clip_id>", methods=["POST"])
+def ai_generate_clip_metadata(clip_id):
+    """(Re)generate title/hook/caption/hashtags for a clip with the LLM."""
+    data = request.get_json(silent=True) or {}
+    platform = data.get("platform", "youtube")
+    if platform not in ("youtube", "tiktok", "instagram"):
+        return jsonify({"error": f"Invalid platform: {platform}"}), 400
+    if not ai_enabled():
+        return jsonify({"error": "AI is not configured. Add an API key in Settings."}), 400
+    try:
+        success, payload = generate_and_save_clip_metadata(clip_id, platform)
+        if not success:
+            return jsonify({"error": payload}), 404
+        return jsonify(payload)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+# ─── Settings ────────────────────────────────────────────────────────
+
+# Secrets are never echoed back to the dashboard — only a set/not-set flag.
+_SETTING_SECRETS = {"ai_api_key"}
+
 
 @api.route("/settings")
 def get_settings():
@@ -437,6 +492,10 @@ def get_settings():
     result = {}
     for r in rows:
         v = r["value"]
+        if r["key"] in _SETTING_SECRETS:
+            result[r["key"]] = ""
+            result[r["key"] + "_set"] = bool(v.strip())
+            continue
         # Convert types
         if v.lower() in ("true", "false"):
             result[r["key"]] = v.lower() == "true"
@@ -451,6 +510,11 @@ def get_settings():
 def update_settings():
     data = request.json
     for key, value in data.items():
+        # Never overwrite a stored secret with a blank/masked value
+        # (the UI leaves the field empty when the key should stay unchanged).
+        if key in _SETTING_SECRETS:
+            if isinstance(value, str) and (not value.strip() or value.startswith("***")):
+                continue
         set_setting(key, value)
     update_scheduler()
     log_activity("Settings Updated", ", ".join(f"{k}={v}" for k, v in data.items()), "info")

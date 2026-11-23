@@ -35,3 +35,29 @@ SECRET_KEY = os.environ.get("CLIPFORGE_SECRET", "clipforge-secret-key-change-me"
 DEBUG = True
 HOST = "0.0.0.0"
 PORT = 5000
+
+# ─── AI Pipeline ─────────────────────────────────────────────────────────
+# ClipForge talks to any OpenAI-compatible chat API (OpenAI, Groq, OpenRouter,
+# DeepSeek, Ollama, LM Studio, ...) or the native Anthropic (Claude) API.
+# Credentials live in the settings table; environment variables are a fallback.
+AI_PROVIDERS = ("openai", "anthropic")
+AI_DEFAULT_PROVIDER = "openai"
+OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1"
+ANTHROPIC_BASE_URL = "https://api.anthropic.com"
+AI_DEFAULT_MODEL = "gpt-4o-mini"
+ANTHROPIC_DEFAULT_MODEL = "claude-3-5-haiku-latest"
+AI_REQUEST_TIMEOUT = 90            # seconds for chat calls
+AI_TRANSCRIBE_TIMEOUT = 900        # seconds for audio transcription uploads
+
+# Whisper speech-to-text (local sizes: tiny/base/small/medium/large-v3)
+WHISPER_DEFAULT_MODE = "auto"      # auto | api | local
+WHISPER_DEFAULT_MODEL = "base"
+WHISPER_LOCAL_SIZES = ("tiny", "base", "small", "medium", "large-v3")
+
+# Env-var fallbacks (explicit settings-table values take precedence)
+AI_ENV_KEYS = {
+    "provider": "CLIPFORGE_AI_PROVIDER",
+    "api_key": "CLIPFORGE_AI_API_KEY",
+    "base_url": "CLIPFORGE_AI_BASE_URL",
+    "model": "CLIPFORGE_AI_MODEL",
+}
