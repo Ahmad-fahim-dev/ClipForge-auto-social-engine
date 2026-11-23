@@ -111,6 +111,112 @@
         </div>
     </div>
 
+    <!-- AI Pipeline -->
+    <div class="card">
+        <div class="card-header">
+            <h3>
+                <svg class="icon-svg" viewBox="0 0 24 24">
+                    <path d="M12 2a4 4 0 0 1 4 4c0 1.1-.45 2.1-1.17 2.83A4 4 0 0 1 12 22a4 4 0 0 1-3.4-1.9A4 4 0 0 1 4 16a4 4 0 0 1 .34-1.62A4 4 0 0 1 3 11a4 4 0 0 1 2.34-3.66A4 4 0 0 1 12 2z"/>
+                    <circle cx="12" cy="12" r="2.2"/>
+                </svg>
+                AI Pipeline
+            </h3>
+            <div class="top-bar-actions">
+                <span id="ai-status-badge" class="status-badge queued">checking…</span>
+                <button class="btn btn-secondary btn-sm" onclick="testAIConnection()">Test AI Connection</button>
+            </div>
+        </div>
+        <div class="card-body">
+            <ul class="settings-list">
+                <li class="settings-item">
+                    <div class="si-info">
+                        <h4>AI Pipeline</h4>
+                        <p>Whisper transcription, AI viral clip selection and AI-generated hooks, captions &amp; hashtags (falls back to scene detection when off)</p>
+                    </div>
+                    <div class="si-control">
+                        <div class="toggle" id="set-ai-enabled" onclick="this.classList.toggle('active')"></div>
+                    </div>
+                </li>
+                <li class="settings-item">
+                    <div class="si-info">
+                        <h4>Provider</h4>
+                        <p>OpenAI-compatible API (OpenAI, Groq, OpenRouter, Ollama…) or Anthropic Claude</p>
+                    </div>
+                    <div class="si-control">
+                        <select class="form-input" id="set-ai-provider" style="min-width:160px;">
+                            <option value="openai">OpenAI-compatible</option>
+                            <option value="anthropic">Anthropic (Claude)</option>
+                        </select>
+                    </div>
+                </li>
+                <li class="settings-item">
+                    <div class="si-info">
+                        <h4>API Key <span id="ai-key-set" style="font-weight:400;color:var(--success);display:none;">(saved)</span></h4>
+                        <p>Used for clip selection, metadata and (optionally) Whisper API transcription. Env var fallback: CLIPFORGE_AI_API_KEY</p>
+                    </div>
+                    <div class="si-control">
+                        <input type="password" class="form-input" id="set-ai-api-key" placeholder="Leave blank to keep current key" style="min-width:220px;" autocomplete="new-password">
+                    </div>
+                </li>
+                <li class="settings-item">
+                    <div class="si-info">
+                        <h4>Base URL (optional)</h4>
+                        <p>Any OpenAI-compatible endpoint, e.g. https://api.groq.com/openai/v1 or http://localhost:11434/v1 (Ollama)</p>
+                    </div>
+                    <div class="si-control">
+                        <input type="text" class="form-input" id="set-ai-base-url" placeholder="https://api.openai.com/v1" style="min-width:220px;">
+                    </div>
+                </li>
+                <li class="settings-item">
+                    <div class="si-info">
+                        <h4>Chat Model</h4>
+                        <p>Used for viral clip selection and metadata (e.g. gpt-4o-mini, llama-3.3-70b-versatile, claude-3-5-haiku-latest)</p>
+                    </div>
+                    <div class="si-control">
+                        <input type="text" class="form-input" id="set-ai-model" placeholder="gpt-4o-mini" style="min-width:220px;">
+                    </div>
+                </li>
+                <li class="settings-item">
+                    <div class="si-info">
+                        <h4>AI Metadata</h4>
+                        <p>Auto-generate optimized titles, hooks, captions and hashtags when clips are created</p>
+                    </div>
+                    <div class="si-control">
+                        <div class="toggle" id="set-ai-auto-metadata" onclick="this.classList.toggle('active')"></div>
+                    </div>
+                </li>
+                <li class="settings-item">
+                    <div class="si-info">
+                        <h4>Whisper Mode</h4>
+                        <p>Transcription engine: auto (API then local), API upload, or local Whisper</p>
+                    </div>
+                    <div class="si-control">
+                        <select class="form-input" id="set-whisper-mode" style="min-width:160px;">
+                            <option value="auto">Auto</option>
+                            <option value="api">API upload</option>
+                            <option value="local">Local Whisper</option>
+                        </select>
+                    </div>
+                </li>
+                <li class="settings-item">
+                    <div class="si-info">
+                        <h4>Whisper Model</h4>
+                        <p>Local model size (tiny → large-v3). API mode maps tiny/base/… to whisper-1</p>
+                    </div>
+                    <div class="si-control">
+                        <select class="form-input" id="set-whisper-model" style="min-width:160px;">
+                            <option value="tiny">tiny (fastest)</option>
+                            <option value="base">base (recommended)</option>
+                            <option value="small">small</option>
+                            <option value="medium">medium</option>
+                            <option value="large-v3">large-v3 (best)</option>
+                        </select>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+
     <!-- Auto Posting -->
     <div class="card">
         <div class="card-header">
@@ -157,28 +263,85 @@
         const t = (id, val) => { const el = document.getElementById(id); if (el && val) el.classList.add('active'); };
         s('set-check-interval', data.check_interval || 10);
         s('set-clips-per-video', data.clips_per_video || 5);
-        s('set-min-duration', data.min_clip_duration || 25);
-        s('set-max-duration', data.max_clip_duration || 59);
-        s('set-post-interval', data.post_interval || 30);
+        s('set-min-duration', data.clip_min_duration || 25);
+        s('set-max-duration', data.clip_max_duration || 59);
+        s('set-post-interval', data.post_delay || 30);
         t('set-auto-download', data.auto_download);
         t('set-auto-clip', data.auto_clip);
         t('set-auto-post', data.auto_post);
+
+        // AI pipeline
+        s('set-ai-provider', data.ai_provider || 'openai');
+        s('set-ai-base-url', data.ai_base_url || '');
+        s('set-ai-model', data.ai_model || 'gpt-4o-mini');
+        s('set-whisper-mode', data.whisper_mode || 'auto');
+        s('set-whisper-model', data.whisper_model || 'base');
+        t('set-ai-enabled', data.ai_enabled);
+        t('set-ai-auto-metadata', data.ai_auto_metadata);
+        if (data.ai_api_key_set) {
+            const badge = document.getElementById('ai-key-set');
+            if (badge) badge.style.display = 'inline';
+        }
+        loadAIStatus();
     }
 
-    async function saveSettings() {
+    async function loadAIStatus() {
+        const badge = document.getElementById('ai-status-badge');
+        const data = await api('/api/ai/status');
+        if (!badge) return;
+        if (data && data.active) {
+            badge.textContent = `AI active — ${data.provider} / ${data.model}`;
+            badge.className = 'status-badge posted';
+        } else if (data && data.configured) {
+            badge.textContent = 'AI configured (disabled)';
+            badge.className = 'status-badge queued';
+        } else {
+            badge.textContent = 'AI not configured';
+            badge.className = 'status-badge failed';
+        }
+    }
+
+    async function testAIConnection() {
+        // Save first so the test uses the values currently in the form.
+        await saveSettings(true);
+        showToast('Testing AI connection…', 'info');
+        const res = await api('/api/ai/test', 'POST');
+        if (res && res.success) {
+            showToast(res.message, 'success');
+        } else {
+            showToast((res && res.message) || 'AI connection failed', 'error');
+        }
+        loadAIStatus();
+    }
+
+    async function saveSettings(silent) {
         const v = id => parseInt(document.getElementById(id)?.value) || 0;
+        const sv = id => (document.getElementById(id)?.value || '').trim();
         const c = id => document.getElementById(id)?.classList.contains('active') || false;
         const res = await api('/api/settings', 'POST', {
             check_interval: v('set-check-interval'),
             clips_per_video: v('set-clips-per-video'),
-            min_clip_duration: v('set-min-duration'),
-            max_clip_duration: v('set-max-duration'),
-            post_interval: v('set-post-interval'),
+            clip_min_duration: v('set-min-duration'),
+            clip_max_duration: v('set-max-duration'),
+            post_delay: v('set-post-interval'),
             auto_download: c('set-auto-download'),
             auto_clip: c('set-auto-clip'),
-            auto_post: c('set-auto-post')
+            auto_post: c('set-auto-post'),
+            ai_enabled: c('set-ai-enabled'),
+            ai_provider: sv('set-ai-provider') || 'openai',
+            ai_api_key: sv('set-ai-api-key'),
+            ai_base_url: sv('set-ai-base-url'),
+            ai_model: sv('set-ai-model'),
+            ai_auto_metadata: c('set-ai-auto-metadata'),
+            whisper_mode: sv('set-whisper-mode') || 'auto',
+            whisper_model: sv('set-whisper-model') || 'base'
         });
-        if (res) showToast('Settings saved!', 'success');
+        if (res && !silent) showToast('Settings saved!', 'success');
+        // Clear the password field so a reload never re-submits it
+        const keyInput = document.getElementById('set-ai-api-key');
+        if (keyInput) keyInput.value = '';
+        if (res && !silent) loadAIStatus();
+        return res;
     }
 
     loadSettings();
