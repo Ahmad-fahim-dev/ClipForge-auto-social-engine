@@ -5,8 +5,61 @@ Uses Selenium for TikTok/Instagram, YouTube Data API for YouTube.
 import os
 import time
 import json
+import requests
 from datetime import datetime
 from models import get_db, log_activity
+
+
+def test_account_connection(platform, creds):
+    """
+    Test connectivity/credentials for a platform account.
+
+    Returns (success: bool, message: str).
+
+    youtube:   validates the API key with a live YouTube Data API v3 call.
+    tiktok:    validates username and session cookie presence.
+    instagram: validates username and session cookie presence.
+    """
+    if platform == "youtube":
+        api_key = (creds.get("api_key") or "").strip()
+        if not api_key:
+            return False, "YouTube API key is missing."
+
+        try:
+            # videoCategories is a cheap call any valid YouTube Data API key can make
+            resp = requests.get(
+                "https://www.googleapis.com/youtube/v3/videoCategories",
+                params={"part": "snippet", "regionCode": "US", "key": api_key},
+                timeout=15,
+            )
+            if resp.status_code == 200:
+                return True, "YouTube API key verified successfully."
+            try:
+                err = resp.json().get("error", {}).get("message", "")
+            except Exception:
+                err = ""
+            if not err:
+                err = (resp.text or "")[:200]
+            return False, f"YouTube API key check failed (HTTP {resp.status_code}): {err}"
+        except Exception as e:
+            return False, f"YouTube API key check failed: {str(e)}"
+
+    if platform in ("tiktok", "instagram"):
+        username = (creds.get("username") or "").strip()
+        session_data = creds.get("session_data") or {}
+        if not username:
+            return False, f"{platform.title()} username is missing."
+        if session_data.get("session_id"):
+            return True, (
+                f"{platform.title()} @{username} credentials saved. "
+                "Session will be verified on the first upload."
+            )
+        return True, (
+            f"{platform.title()} @{username} saved. No session ID provided — "
+            "you will need to log in manually on the first upload."
+        )
+
+    return False, f"Unknown platform: {platform}"
 
 
 def post_to_youtube(clip_path, title, description="", tags=None):

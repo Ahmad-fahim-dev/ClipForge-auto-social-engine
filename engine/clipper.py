@@ -7,7 +7,7 @@ import subprocess
 import json
 import random
 from models import get_db, log_activity, get_setting
-from config import CLIPS_DIR, THUMBNAILS_DIR
+from config import CLIPS_DIR, THUMBNAILS_DIR, DOWNLOADS_DIR
 
 
 def detect_scenes(video_path, threshold=27.0):
@@ -191,9 +191,23 @@ def process_video(video_id):
         return True, "Already processed"
 
     file_path = video["file_path"]
-    if not os.path.exists(file_path):
-        conn.close()
-        return False, f"Video file not found: {file_path}"
+    if not file_path or not os.path.exists(file_path):
+        # Portability fix: remap a stored path from another machine onto the
+        # local downloads directory before giving up.
+        remapped = ""
+        if file_path:
+            candidate = os.path.join(DOWNLOADS_DIR, os.path.basename(file_path))
+            if os.path.exists(candidate):
+                remapped = candidate
+        if remapped:
+            conn.execute(
+                "UPDATE videos SET file_path = ? WHERE id = ?", (remapped, video_id)
+            )
+            conn.commit()
+            file_path = remapped
+        else:
+            conn.close()
+            return False, f"Video file not found: {file_path or '(empty)'}"
 
     clips_per_video = int(get_setting("clips_per_video", 5))
     min_dur = int(get_setting("clip_min_duration", 25))
