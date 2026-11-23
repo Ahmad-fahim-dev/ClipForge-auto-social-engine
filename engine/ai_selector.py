@@ -264,7 +264,7 @@ def _truncate_blocks(blocks, char_budget):
 def _ts(seconds):
     m, s = divmod(int(seconds), 60)
     h, m = divmod(m, 60)
-    return f"{h}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}" if False else f"{m}:{s:02d}"
+    return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
 
 
 def _clean_text(value, max_len):
