@@ -2,6 +2,7 @@
 Video Downloader — downloads YouTube videos using yt-dlp.
 """
 import os
+import glob
 import subprocess
 import json
 from models import get_db, log_activity
@@ -16,12 +17,32 @@ def download_video(video_id):
         conn.close()
         return False, "Video not found"
 
-    if video["downloaded"]:
-        conn.close()
-        return True, "Already downloaded"
-
     url = video["url"]
     output_path = os.path.join(DOWNLOADS_DIR, f"{video['youtube_video_id']}.mp4")
+
+    if video["downloaded"]:
+        stored_path = video["file_path"] or ""
+        # Already downloaded and the file is still on disk
+        if stored_path and os.path.exists(stored_path):
+            conn.close()
+            return True, "Already downloaded"
+        # Portability fix: remap a stored path from another machine
+        # (e.g. C:\Users\...\downloads\id.mp4) onto the local downloads dir
+        if stored_path:
+            local = os.path.join(DOWNLOADS_DIR, os.path.basename(stored_path))
+            if os.path.exists(local):
+                conn.execute(
+                    "UPDATE videos SET file_path = ? WHERE id = ?", (local, video_id)
+                )
+                conn.commit()
+                conn.close()
+                return True, "Already downloaded"
+        # File is lost — reset so it gets downloaded again
+        conn.execute(
+            "UPDATE videos SET downloaded = 0, file_path = '' WHERE id = ?",
+            (video_id,)
+        )
+        conn.commit()
 
     try:
         cmd = [
@@ -44,18 +65,45 @@ def download_video(video_id):
             conn.close()
             return False, error_msg
 
-        # Get video duration
-        duration = get_video_duration(output_path)
+        # Resolve the real output file (yt-dlp may choose a different container)
+        final_path = output_path
+        if not os.path.exists(final_path):
+            candidates = [
+                p for p in glob.glob(
+                    os.path.join(DOWNLOADS_DIR, f"{video['youtube_video_id']}.*")
+                )
+                if not p.endswith(".part")
+            ]
+            if candidates:
+                final_path = candidates[0]
+
+        if not os.path.exists(final_path):
+            error_msg = "yt-dlp finished but the output file was not found"
+            log_activity("Download Failed", f"{video['title']}: {error_msg}", "error")
+            conn.close()
+            return False, error_msg
+
+        # Get video duration — the file must be readable to count as downloaded
+        duration = get_video_duration(final_path)
+        if duration <= 0:
+            error_msg = "Downloaded file is unreadable (duration probe failed)"
+            log_activity("Download Failed", f"{video['title']}: {error_msg}", "error")
+            try:
+                os.remove(final_path)
+            except OSError:
+                pass
+            conn.close()
+            return False, error_msg
 
         conn.execute(
             "UPDATE videos SET downloaded = 1, file_path = ?, duration = ? WHERE id = ?",
-            (output_path, duration, video_id)
+            (final_path, duration, video_id)
         )
         conn.commit()
         conn.close()
 
         log_activity("Download Complete", f"{video['title']} ({duration}s)", "success")
-        return True, output_path
+        return True, final_path
 
     except subprocess.TimeoutExpired:
         log_activity("Download Timeout", f"{video['title']}", "error")
